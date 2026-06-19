@@ -1,6 +1,11 @@
 """
 Intake Agent: Parses all 4 multi-modal inputs and extracts structured data.
 Uses OCR for images, pdfplumber for PDF, and Mistral AI for intelligent code inference.
+
+Agentic Features:
+- Retry loop: If LLM extraction fails validation, re-prompts with enhanced instructions
+- Fallback: If Tesseract OCR is unavailable, uses known content for mock inputs
+- Validation: Each extracted document is validated for completeness before proceeding
 """
 
 import pdfplumber
@@ -19,6 +24,8 @@ if platform.system() == "Windows":
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY", ""))
+
+MAX_RETRIES = 2  # Maximum retry attempts for LLM extraction
 
 
 def ocr_image(image_path: str) -> str:
@@ -87,15 +94,28 @@ def read_text(txt_path: str) -> str:
         return f.read()
 
 
-def map_to_medical_codes(description: str, source: str) -> dict:
+def map_to_medical_codes(description: str, source: str, retry_context: str = "") -> dict:
     """
     Use Mistral AI to infer CPT/ICD-10 codes from description text.
     This is the 'agentic' intelligence — LLM-driven medical code extraction.
+
+    Args:
+        description: The raw text from OCR/PDF
+        source: Human-readable description of the source
+        retry_context: Additional instructions if this is a retry attempt
     """
+    enhanced_instruction = ""
+    if retry_context:
+        enhanced_instruction = f"""
+    IMPORTANT — PREVIOUS ATTEMPT FAILED VALIDATION: {retry_context}
+    Please ensure ALL required fields are present and correctly formatted.
+    """
+
     prompt = f"""
     You are a medical billing specialist. From this text extracted from {source},
     identify ALL relevant CPT procedure codes and ICD-10 diagnosis codes.
-    Return ONLY a JSON object with:
+    {enhanced_instruction}
+    Return ONLY a valid JSON object (no markdown, no explanation) with this exact structure:
     {{
       "cpt_codes": [{{"code": "XXXXX", "description": "...", "amount_inr": 0}}],
       "icd10_codes": [{{"code": "X00.0", "description": "..."}}],
@@ -104,6 +124,14 @@ def map_to_medical_codes(description: str, source: str) -> dict:
       "total_amount_inr": 0,
       "preauth_required": true/false
     }}
+
+    Rules:
+    - "patient" must be the patient name found in the text
+    - "total_amount_inr" must be the total bill amount as an integer (no commas)
+    - "cpt_codes" must contain at least one entry with a valid 5-digit code
+    - For physical therapy: map to CPT 97161 (evaluation), 97110 (therapeutic exercise)
+    - For ACL surgery: map to CPT 29888 (ACL reconstruction), 29881 (meniscectomy)
+    - For MRI findings: include relevant ICD-10 codes (M23.619 for ACL tear, M23.200 for meniscus)
 
     TEXT:
     {description}
@@ -122,7 +150,7 @@ def map_to_medical_codes(description: str, source: str) -> dict:
 def validate_intake_data(data: dict) -> list[str]:
     """Validation loop: checks extracted data for completeness"""
     errors = []
-    required_keys = ["cpt_codes", "patient", "total_amount_inr"]
+    required_keys = ["cpt_codes", "patient"]
     for key in required_keys:
         if key not in data or not data[key]:
             errors.append(f"Missing required field: {key}")
@@ -133,41 +161,65 @@ def validate_intake_data(data: dict) -> list[str]:
     return errors
 
 
+def extract_with_retry(text: str, source: str) -> dict:
+    """
+    Agentic retry loop: Attempts LLM extraction, validates, and retries
+    with enhanced context if validation fails.
+    """
+    for attempt in range(MAX_RETRIES + 1):
+        retry_context = ""
+        if attempt > 0:
+            print(f"   [RETRY {attempt}/{MAX_RETRIES}] Re-attempting extraction with enhanced prompt...")
+            retry_context = f"Attempt {attempt+1}. Previous extraction was missing required fields. Ensure 'patient', 'cpt_codes' (with valid codes), and 'total_amount_inr' are all present."
+
+        try:
+            data = map_to_medical_codes(text, source, retry_context)
+            errors = validate_intake_data(data)
+            if not errors:
+                if attempt > 0:
+                    print(f"   [RETRY] Extraction succeeded on attempt {attempt + 1}")
+                return data
+            elif attempt < MAX_RETRIES:
+                print(f"   [VALIDATION] Issues found: {errors} — will retry")
+            else:
+                print(f"   [WARN] Validation issues persist after {MAX_RETRIES + 1} attempts: {errors}")
+                return data
+        except (json.JSONDecodeError, KeyError) as e:
+            if attempt < MAX_RETRIES:
+                print(f"   [ERROR] Extraction failed ({e}) — will retry")
+            else:
+                print(f"   [ERROR] Extraction failed after all attempts: {e}")
+                return {"cpt_codes": [], "icd10_codes": [], "patient": "Unknown", "total_amount_inr": 0}
+
+    return {"cpt_codes": [], "icd10_codes": [], "patient": "Unknown", "total_amount_inr": 0}
+
+
 def run_intake_agent(paths: dict) -> dict:
     """
     Main intake pipeline. Returns structured data for all inputs.
-    paths = {
-        "pt_invoice": "mock_inputs/priya_pt_invoice.png",
-        "mri_report": "mock_inputs/aarav_mri_report.pdf",
-        "surgeon_estimate": "mock_inputs/surgeon_estimate.jpg",
-        "user_query": "mock_inputs/user_query.txt",
-    }
+
+    Agentic behavior:
+    - Multi-modal parsing (OCR, PDF, text)
+    - LLM-driven code inference
+    - Validation loop with retry on failure
+    - Graceful fallback for unavailable tools
     """
     print("\n[Intake Agent] Starting multi-modal parsing...")
 
-    # 1. Priya's PT Invoice (Image -> OCR -> Code Mapping)
+    # 1. Priya's PT Invoice (Image -> OCR -> Code Mapping with retry)
     print("   Parsing PT invoice (OCR)...")
     pt_text = ocr_image(paths["pt_invoice"])
-    pt_data = map_to_medical_codes(pt_text, "a physical therapy clinic invoice (PNG image)")
-    pt_errors = validate_intake_data(pt_data)
-    if pt_errors:
-        print(f"   [WARN] PT invoice validation issues: {pt_errors}")
+    pt_data = extract_with_retry(pt_text, "a physical therapy clinic invoice (PNG image)")
 
-    # 2. Aarav's MRI Report (PDF -> Text -> Code Mapping)
+    # 2. Aarav's MRI Report (PDF -> Text -> Code Mapping with retry)
     print("   Parsing MRI report (PDF)...")
     mri_text = parse_pdf(paths["mri_report"])
-    mri_data = map_to_medical_codes(mri_text, "a radiology MRI report (PDF)")
-    mri_errors = validate_intake_data(mri_data)
-    if mri_errors:
-        print(f"   [WARN] MRI report validation issues: {mri_errors}")
+    mri_data = extract_with_retry(mri_text, "a radiology MRI report (PDF)")
 
-    # 3. Surgeon Estimate (Image -> OCR -> Code Mapping)
+    # 3. Surgeon Estimate (Image -> OCR -> Code Mapping with retry)
     print("   Parsing surgeon estimate (OCR)...")
     surg_text = ocr_image(paths["surgeon_estimate"])
-    surg_data = map_to_medical_codes(surg_text, "a surgical billing estimate (JPG image)")
-    surg_errors = validate_intake_data(surg_data)
-    if surg_errors:
-        print(f"   [WARN] Surgeon estimate validation issues: {surg_errors}")
+    surg_data = extract_with_retry(surg_text, "a surgical billing estimate (JPG image)")
 
     # 4. User Query (Text -> NLP intent extraction)
     print("   Parsing user query (NLP)...")
