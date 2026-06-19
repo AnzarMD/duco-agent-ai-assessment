@@ -21,6 +21,8 @@ env/
 .vscode/
 .idea/
 *.swp
+#12333
+#new
 *.swo
 
 # OS
