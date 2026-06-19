@@ -2,6 +2,23 @@
 
 An intelligent agentic AI system that automates **Coordination of Benefits (COB)** calculations for patients with dual insurance coverage. Built with multi-modal input parsing, LLM-powered medical code extraction, and automated pre-authorization letter generation.
 
+## Note on LLM Choice
+
+> **This project uses Mistral AI** (`mistral-medium-latest` and `mistral-small-latest`) as the LLM backend.
+> The original design was built for **Anthropic Claude (claude-sonnet-4-6)**, which provides superior performance
+> for medical code extraction and clinical letter generation. Due to Claude API key unavailability,
+> Mistral was chosen as a free-tier alternative. The architecture is model-agnostic and can be
+> switched back to Claude by replacing the Mistral client calls with Anthropic's SDK.
+
+### Model Assignments
+
+| Task | Model Used | Reasoning |
+|------|-----------|-----------|
+| Medical code extraction (CPT/ICD-10) | `mistral-medium-latest` | Best Mistral model for structured JSON output and complex clinical reasoning |
+| Pre-auth letter generation | `mistral-medium-latest` | Requires quality professional writing with clinical terminology |
+| Audio briefing script | `mistral-small-latest` | Simple conversational text; lighter model is sufficient |
+| Text-to-Speech (voice) | `gTTS` (Google TTS) | Free, no API key needed, supports Indian English accent |
+
 ## Architecture
 
 ```
@@ -26,7 +43,7 @@ An intelligent agentic AI system that automates **Coordination of Benefits (COB)
 ## Key Features
 
 - **Multi-Modal Intake**: OCR (Tesseract) for scanned invoices/estimates, pdfplumber for radiology reports, NLP for text queries
-- **LLM-Powered Code Extraction**: Claude maps clinical text to CPT/ICD-10 codes
+- **LLM-Powered Code Extraction**: Mistral AI maps clinical text to CPT/ICD-10 codes
 - **COB Logic Engine**: Birthday Rule determination, deductible tracking, coinsurance, OOP max caps
 - **Pre-Auth Generation**: AI-drafted clinically accurate authorization letters saved as PDF
 - **Visual Outputs**: Cost flow bar charts (matplotlib) and audio briefings (gTTS)
@@ -58,9 +75,9 @@ venv\Scripts\activate     # Windows
 # Install dependencies
 pip install -r requirements.txt
 
-# Set API key
-export ANTHROPIC_API_KEY=sk-ant-...   # Linux/macOS
-set ANTHROPIC_API_KEY=sk-ant-...      # Windows
+# Set Mistral API key (get free key at https://console.mistral.ai)
+export MISTRAL_API_KEY=your-key-here    # Linux/macOS
+set MISTRAL_API_KEY=your-key-here       # Windows
 ```
 
 ### Generate Mock Input Files
@@ -102,7 +119,7 @@ pytest tests/ -v
 | `outputs/cost_flow.png` | Visual bar chart of cost distribution |
 | `outputs/preauth_insurer2_primary_aarav.pdf` | Pre-auth letter to Insurer2 (Primary) |
 | `outputs/preauth_insurer1_secondary_aarav.pdf` | Pre-auth letter to Insurer1 (Secondary) |
-| `outputs/audio_briefing.mp3` | Patient-friendly audio summary |
+| `outputs/audio_briefing.mp3` | Patient-friendly audio summary (Indian English) |
 | `outputs/full_cob_report.json` | Complete COB calculation breakdown |
 
 ## COB Logic — How It Works
@@ -139,13 +156,32 @@ Patient final OOP: ≈ Rs 28,400
 3. **API Tool-Use**: COB engine calls the mock API to verify rules (demonstrating agentic tool-use)
 4. **Fallback OCR**: If Tesseract fails, the system still has structured data from the code mapper
 5. **Separation of Concerns**: Each agent handles one responsibility (intake, calculation, letter gen)
+6. **Model-Agnostic Design**: LLM calls are isolated — swapping Mistral for Claude requires changing only the client initialization and model names
 
 ## Tech Stack
 
-- **LLM**: Anthropic Claude (claude-sonnet-4-6)
+- **LLM**: Mistral AI (`mistral-medium-latest`, `mistral-small-latest`)
+- **TTS**: gTTS (Google Text-to-Speech, Indian English)
 - **OCR**: Tesseract via pytesseract
 - **PDF**: pdfplumber (reading), ReportLab (writing)
 - **API**: FastAPI + uvicorn
 - **Visualization**: matplotlib
-- **Audio**: gTTS (Google Text-to-Speech)
 - **Testing**: pytest
+
+## Switching to Claude (if API key becomes available)
+
+Replace `mistralai` with `anthropic` in requirements.txt, then update the three agent files:
+
+```python
+# Before (Mistral)
+from mistralai import Mistral
+client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY", ""))
+response = client.chat.complete(model="mistral-medium-latest", messages=[...])
+text = response.choices[0].message.content
+
+# After (Claude)
+import anthropic
+client = anthropic.Anthropic()
+message = client.messages.create(model="claude-sonnet-4-6", max_tokens=1000, messages=[...])
+text = message.content[0].text
+```
