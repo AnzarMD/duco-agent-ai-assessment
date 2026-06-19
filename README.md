@@ -91,7 +91,11 @@ venv\Scripts\activate     # Windows
 # Install dependencies
 pip install -r requirements.txt
 
-# Set Mistral API key (get free key at https://console.mistral.ai)
+# Copy .env.example and add your API key
+cp .env.example .env
+# Edit .env and set MISTRAL_API_KEY (get free key at https://console.mistral.ai)
+
+# Or set directly in terminal:
 export MISTRAL_API_KEY=your-key-here    # Linux/macOS
 set MISTRAL_API_KEY=your-key-here       # Windows
 ```
@@ -110,11 +114,24 @@ This creates:
 
 ## Running
 
-### Full Pipeline
+### Full Pipeline (requires Mistral API key)
 
 ```bash
+set MISTRAL_API_KEY=your-key-here
 python main.py
 ```
+
+### Demo Mode (NO API key needed)
+
+```bash
+python run_demo.py
+```
+
+This runs the complete pipeline using cached LLM responses, so evaluators can see:
+- All 8 state machine transitions
+- Tool-use (pre-auth verification per CPT code)
+- COB calculations with step-by-step math
+- Generated outputs (chart, PDFs, audio, JSON)
 
 ### Mock Insurance API (optional, enhances COB verification)
 
