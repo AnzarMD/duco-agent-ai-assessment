@@ -29,11 +29,11 @@ env/
 .DS_Store
 Thumbs.db
 
-# Outputs (regenerated)
-outputs/*.png
-outputs/*.pdf
-outputs/*.mp3
-outputs/*.json
+# Outputs (keep sample outputs for evaluation)
+# outputs/*.png
+# outputs/*.pdf
+# outputs/*.mp3
+# outputs/*.json
 
 # Mock generated files (regenerated)
 mock_inputs/*.png

@@ -1,0 +1,225 @@
+{
+  "agent_metadata": {
+    "system": "DuCO-Agent v1.0",
+    "stages_completed": [
+      "INIT",
+      "INTENT_PARSING",
+      "INTAKE",
+      "VALIDATION",
+      "COB_CALCULATION",
+      "PREAUTH_GENERATION",
+      "OUTPUT_GENERATION",
+      "COMPLETE"
+    ],
+    "validation_passed": true,
+    "errors": [],
+    "warnings": [],
+    "user_intent": {
+      "wants_cob_calculation": true,
+      "wants_preauth_letters": true,
+      "wants_oop_breakdown": true,
+      "patients_mentioned": [
+        "Aarav",
+        "Priya"
+      ],
+      "plans_mentioned": [
+        "Plan A",
+        "Plan B"
+      ]
+    }
+  },
+  "aarav_surgery": {
+    "patient": "Aarav",
+    "total_bill_inr": 450000,
+    "cpt_codes": [
+      {
+        "code": "29888",
+        "description": "Arthroscopically aided ACL reconstruction",
+        "amount_inr": 35000
+      },
+      {
+        "code": "29881",
+        "description": "Arthroscopy, knee, surgical with meniscectomy",
+        "amount_inr": 10000
+      },
+      {
+        "code": "99213",
+        "description": "Office/outpatient visit established patient",
+        "amount_inr": 2500
+      },
+      {
+        "code": "73721",
+        "description": "MRI any joint of lower extremity without contrast",
+        "amount_inr": 3000
+      }
+    ],
+    "primary_plan": "Plan B",
+    "secondary_plan": "Plan A",
+    "preauth_verification": {
+      "all_verifications": {
+        "29888": {
+          "cpt_code": "29888",
+          "preauth_required": true,
+          "status": "APPROVED",
+          "source": "local_fallback",
+          "notes": "CPT 29888 requires pre-authorization."
+        },
+        "29881": {
+          "cpt_code": "29881",
+          "preauth_required": true,
+          "status": "APPROVED",
+          "source": "local_fallback",
+          "notes": "CPT 29881 requires pre-authorization."
+        },
+        "99213": {
+          "cpt_code": "99213",
+          "preauth_required": false,
+          "status": "NOT_REQUIRED",
+          "source": "local_fallback",
+          "notes": "CPT 99213 does not require pre-authorization."
+        },
+        "73721": {
+          "cpt_code": "73721",
+          "preauth_required": true,
+          "status": "APPROVED",
+          "source": "local_fallback",
+          "notes": "CPT 73721 requires pre-authorization."
+        }
+      },
+      "codes_needing_preauth": [
+        "29888",
+        "29881",
+        "73721"
+      ],
+      "preauth_required": true
+    },
+    "calculation_method": "Standard COB with Birthday Rule",
+    "steps": [
+      {
+        "plan": "Plan B",
+        "role": "Primary",
+        "explanation": "Apply Plan B deductible of Rs 15,000. Deductible applied: Rs 15,000. Remaining eligible amount: Rs 435,000. Plan pays 80% = Rs 350,000. Patient responsible for coinsurance: Rs 85,000. Total patient OOP after primary: Rs 100,000.",
+        "deductible_applied_inr": 15000,
+        "eligible_after_deductible_inr": 435000,
+        "coinsurance_rate": "80% plan / 19% patient",
+        "plan_pays_inr": 350000,
+        "patient_coinsurance_inr": 85000,
+        "patient_oop_inr": 100000,
+        "oop_max_applied": true
+      },
+      {
+        "plan": "Plan A",
+        "role": "Secondary",
+        "explanation": "Secondary plan picks up patient's remaining OOP from primary: Rs 100,000. Apply Plan A deductible: Rs 10,000. Eligible after deductible: Rs 90,000. Plan pays 80% = Rs 72,001. Patient coinsurance: Rs 17,999. Patient final OOP: Rs 27,999.",
+        "patient_oop_from_primary_inr": 100000,
+        "deductible_applied_inr": 10000,
+        "eligible_after_secondary_deductible_inr": 90000,
+        "coinsurance_rate": "80% plan / 19% patient",
+        "plan_pays_inr": 72001,
+        "patient_coinsurance_inr": 17999,
+        "patient_final_oop_inr": 27999
+      }
+    ],
+    "summary": {
+      "primary_pays_inr": 350000,
+      "secondary_pays_inr": 72001,
+      "patient_final_oop_inr": 27999,
+      "total_insurer_coverage_inr": 422001,
+      "savings_vs_no_dual_coverage_inr": 422001,
+      "coverage_percentage": 93.8
+    },
+    "reflection": {
+      "is_correct": false,
+      "confidence": 0.95,
+      "issues_found": [
+        "Primary + Secondary + Patient OOP = 350000 + 72001 + 27999 = 450000 (matches total bill, but secondary payment calculation is incorrect)",
+        "Secondary plan payment calculation: 80% of 90000 should be exactly 72000, not 72001 (rounding error)",
+        "Patient coinsurance for secondary should be 18% (100% - 80% - 2% implied administrative fee), not 19%"
+      ],
+      "explanation": "The calculation correctly follows COB rules with proper deductible application and coinsurance splits. The only issues are minor rounding discrepancies in the secondary plan's payment (72001 vs correct 72000) and an incorrect implied coinsurance rate (19% vs standard 18% for 80/20 split). The total amounts match the bill, but the secondary payment should be exactly 72000."
+    }
+  },
+  "priya_pt": {
+    "patient": "Priya",
+    "total_bill_inr": 30000,
+    "cpt_codes": [
+      {
+        "code": "97161",
+        "description": "Physical Therapy Evaluation",
+        "amount_inr": 8000
+      },
+      {
+        "code": "97110",
+        "description": "Therapeutic Exercise - Lower Back",
+        "amount_inr": 14000
+      }
+    ],
+    "primary_plan": "Plan A",
+    "secondary_plan": "Plan B",
+    "preauth_verification": {
+      "all_verifications": {
+        "97161": {
+          "cpt_code": "97161",
+          "preauth_required": false,
+          "status": "NOT_REQUIRED",
+          "source": "local_fallback",
+          "notes": "CPT 97161 does not require pre-authorization."
+        },
+        "97110": {
+          "cpt_code": "97110",
+          "preauth_required": false,
+          "status": "NOT_REQUIRED",
+          "source": "local_fallback",
+          "notes": "CPT 97110 does not require pre-authorization."
+        }
+      },
+      "codes_needing_preauth": [],
+      "preauth_required": false
+    },
+    "calculation_method": "Standard COB with Birthday Rule",
+    "steps": [
+      {
+        "plan": "Plan A",
+        "role": "Primary",
+        "explanation": "Apply Plan A deductible of Rs 10,000. Deductible applied: Rs 10,000. Remaining eligible amount: Rs 20,000. Plan pays 80% = Rs 16,001. Patient responsible for coinsurance: Rs 3,999. Total patient OOP after primary: Rs 13,999.",
+        "deductible_applied_inr": 10000,
+        "eligible_after_deductible_inr": 20000,
+        "coinsurance_rate": "80% plan / 19% patient",
+        "plan_pays_inr": 16001,
+        "patient_coinsurance_inr": 3999,
+        "patient_oop_inr": 13999,
+        "oop_max_applied": false
+      },
+      {
+        "plan": "Plan B",
+        "role": "Secondary",
+        "explanation": "Secondary plan picks up patient's remaining OOP from primary: Rs 13,999. Apply Plan B deductible: Rs 13,999. Eligible after deductible: Rs 0. Plan pays 80% = Rs 0. Patient coinsurance: Rs 0. Patient final OOP: Rs 13,999.",
+        "patient_oop_from_primary_inr": 13999,
+        "deductible_applied_inr": 13999,
+        "eligible_after_secondary_deductible_inr": 0,
+        "coinsurance_rate": "80% plan / 19% patient",
+        "plan_pays_inr": 0,
+        "patient_coinsurance_inr": 0,
+        "patient_final_oop_inr": 13999
+      }
+    ],
+    "summary": {
+      "primary_pays_inr": 16001,
+      "secondary_pays_inr": 0,
+      "patient_final_oop_inr": 13999,
+      "total_insurer_coverage_inr": 16001,
+      "savings_vs_no_dual_coverage_inr": 16001,
+      "coverage_percentage": 53.3
+    },
+    "reflection": {
+      "is_correct": false,
+      "confidence": 0.95,
+      "issues_found": [
+        "Primary plan's coinsurance calculation is incorrect: 80% of Rs 20,000 should be Rs 16,000, not Rs 16,001",
+        "Patient coinsurance from primary is incorrect: 20% of Rs 20,000 should be Rs 4,000, not Rs 3,999",
+        "Secondary plan's deductible application is incorrect: Plan B should not apply its deductible to the patient's remaining OOP from primary (Rs 13,999). Secondary plans typically cover the patient's coinsurance portion only after primary pays, not the full remaining OOP"
+      ],
+      "explanation": "The primary plan calculation has minor rounding errors in the coinsurance split (Rs 1 difference in plan payment and Rs 1 difference in patient coinsurance). The major issue is with the secondary plan's deductible application - secondary plans should not apply their deductible to the patient's remaining OOP from primary. Secondary plans typically cover the patient's coinsurance portion (19% in this case) after primary pays their portion, not the full remaining balance."
+    }
+  }
+}
