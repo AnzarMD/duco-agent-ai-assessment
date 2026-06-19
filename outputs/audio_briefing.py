@@ -1,17 +1,17 @@
 """
 Generates a plain-language audio briefing using TTS.
-Uses gTTS (Google Text-to-Speech) for Indian English accent.
+Uses Mistral AI for script generation and gTTS (Google Text-to-Speech) for Indian English voice.
 """
 
-from gtts import gTTS
-import anthropic
 import os
+from gtts import gTTS
+from mistralai.client import Mistral
 
-client = anthropic.Anthropic()
+client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY", ""))
 
 
 def generate_audio_script(cob_results: dict) -> str:
-    """Use Claude to write a simple, patient-friendly audio summary"""
+    """Use Mistral AI to write a simple, patient-friendly audio summary"""
     aarav_oop = cob_results["aarav_surgery"].patient_oop
     priya_oop = cob_results["priya_pt"].patient_oop
 
@@ -25,16 +25,16 @@ def generate_audio_script(cob_results: dict) -> str:
     - Pre-authorization letters have been generated for both insurers.
     - Start with "Hello Aarav and Priya," and end with next steps.
     """
-    msg = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=400,
+    response = client.chat.complete(
+        model="mistral-small-latest",
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=400,
     )
-    return msg.content[0].text
+    return response.choices[0].message.content
 
 
 def generate_audio(script: str, output_path: str = "outputs/audio_briefing.mp3"):
-    """Convert script text to speech and save as MP3"""
+    """Convert script text to speech and save as MP3 using gTTS"""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     tts = gTTS(text=script, lang="en", tld="co.in")  # Indian English accent
     tts.save(output_path)

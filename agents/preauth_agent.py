@@ -2,17 +2,17 @@
 Pre-Authorization Letter Generator
 
 Produces professional, clinically accurate letters for Insurer1 and Insurer2.
-Uses Claude to draft clinically sound pre-auth requests.
+Uses Mistral AI to draft clinically sound pre-auth requests.
 """
 
-import anthropic
+import os
+from mistralai.client import Mistral
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from datetime import date
 import textwrap
-import os
 
-client = anthropic.Anthropic()
+client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY", ""))
 
 
 def generate_preauth_letter(
@@ -23,7 +23,7 @@ def generate_preauth_letter(
     clinical_justification: str,
     is_primary: bool,
 ) -> str:
-    """Use Claude to draft a clinically sound pre-auth letter"""
+    """Use Mistral AI to draft a clinically sound pre-auth letter"""
     cpt_str = "\n".join(
         f"  - CPT {c['code']}: {c['description']} ({c.get('amount_inr', 0):,} INR)"
         for c in cpt_codes
@@ -56,12 +56,12 @@ def generate_preauth_letter(
     Clinical Justification:
     {clinical_justification}
     """
-    msg = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=800,
+    response = client.chat.complete(
+        model="mistral-medium-latest",
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=800,
     )
-    return msg.content[0].text
+    return response.choices[0].message.content
 
 
 def save_letter_as_pdf(letter_text: str, output_path: str, title: str):
