@@ -2,6 +2,22 @@
 
 An intelligent agentic AI system that automates **Coordination of Benefits (COB)** calculations for patients with dual insurance coverage. Built with multi-modal input parsing, LLM-powered medical code extraction, and automated pre-authorization letter generation.
 
+---
+
+## ⚠️ Important Note on Branch Protection Rules
+
+> **GitHub Limitation:** Branch protection rulesets (push rules, required reviews, force-push blocking)
+> **cannot be enforced on private repositories** unless the account is upgraded to a **GitHub Team or Enterprise organization plan**.
+>
+> This repository is private and on a free GitHub account. As a result:
+> - The branch protection rules (require PR before merging to `main`, block force pushes, etc.) described in the project requirements **have been configured** but **are NOT enforced by GitHub**.
+> - We followed the intended workflow regardless: all changes were made on feature branches and merged via Pull Requests.
+> - Semantic commit messages (`feat:`, `fix:`, `refactor:`, `chore:`) were used consistently throughout.
+>
+> **To fully enforce these rules**, the repository would need to be moved to a GitHub Team organization account.
+
+---
+
 ## Note on LLM Choice
 
 > **This project uses Mistral AI** (`mistral-medium-latest` and `mistral-small-latest`) as the LLM backend.
