@@ -9,7 +9,14 @@ from PIL import Image
 import re
 import json
 import os
+import platform
 from mistralai.client import Mistral
+
+# Configure Tesseract path for Windows if not in PATH
+if platform.system() == "Windows":
+    tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY", ""))
 
