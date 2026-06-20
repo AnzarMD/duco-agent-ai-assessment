@@ -37,10 +37,12 @@ An intelligent agentic AI system that automates **Coordination of Benefits (COB)
 
 ## Architecture
 
+For detailed system architecture with Mermaid flowcharts, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    main.py (Orchestrator)                │
-│              DuCOAgentState — State Machine              │
+│         DuCOAgentState — 9-Stage State Machine          │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │  ┌──────────────┐   ┌──────────────┐   ┌────────────┐  │
@@ -53,18 +55,27 @@ An intelligent agentic AI system that automates **Coordination of Benefits (COB)
 │  │ Code Mapper  │   │  Mock APIs   │   │  Outputs   │  │
 │  │ (CPT/ICD-10) │   │  (FastAPI)   │   │(Chart/TTS) │  │
 │  └──────────────┘   └──────────────┘   └────────────┘  │
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  What-If Analyzer — Autonomous Scenario Reasoning│   │
+│  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ## Key Features
 
 - **Multi-Modal Intake**: OCR (Tesseract) for scanned invoices/estimates, pdfplumber for radiology reports, NLP for text queries
-- **LLM-Powered Code Extraction**: Mistral AI maps clinical text to CPT/ICD-10 codes
+- **LLM-Powered Code Extraction**: Mistral AI maps clinical text to CPT/ICD-10 codes with retry loops
 - **COB Logic Engine**: Birthday Rule determination, deductible tracking, coinsurance, OOP max caps
 - **Pre-Auth Generation**: AI-drafted clinically accurate authorization letters saved as PDF
 - **Visual Outputs**: Cost flow bar charts (matplotlib) and audio briefings (gTTS)
 - **Mock Insurance APIs**: FastAPI endpoints simulating insurer plan verification
-- **State Machine Design**: Explicit stage transitions with validation loops
+- **9-Stage State Machine**: Explicit stage transitions with validation loops and transition history
+- **Agentic Reflection**: LLM self-verifies its own COB calculations after each claim
+- **Tool-Use Loop**: Per-CPT pre-auth verification by calling the mock insurance API
+- **What-If Scenario Analyzer**: Autonomously compares 5 insurance scenarios (no coverage, single plan, dual coverage, mid-year) to demonstrate the value of COB
+- **Compliance Checklist**: Each claim includes a structured compliance audit in the JSON output
+- **Demo Mode**: Full pipeline runs without API key using cached responses (`run_demo.py`)
 
 ## Setup
 
@@ -128,9 +139,10 @@ python run_demo.py
 ```
 
 This runs the complete pipeline using cached LLM responses, so evaluators can see:
-- All 8 state machine transitions
+- All 9 state machine transitions (including What-If Analysis stage)
 - Tool-use (pre-auth verification per CPT code)
 - COB calculations with step-by-step math
+- What-If scenario comparison table (5 scenarios)
 - Generated outputs (chart, PDFs, audio, JSON)
 
 ### Mock Insurance API (optional, enhances COB verification)
@@ -153,7 +165,21 @@ pytest tests/ -v
 | `outputs/preauth_insurer2_primary_aarav.pdf` | Pre-auth letter to Insurer2 (Primary) |
 | `outputs/preauth_insurer1_secondary_aarav.pdf` | Pre-auth letter to Insurer1 (Secondary) |
 | `outputs/audio_briefing.mp3` | Patient-friendly audio summary (Indian English) |
-| `outputs/full_cob_report.json` | Complete COB calculation breakdown |
+| `outputs/full_cob_report.json` | Complete COB breakdown + What-If analysis + compliance checklist |
+
+## What-If Scenario Analysis
+
+The agent autonomously explores 5 scenarios without being asked — demonstrating proactive reasoning:
+
+| Scenario | Family OOP | Savings vs No Insurance |
+|----------|-----------|------------------------|
+| No Insurance | Rs 4,80,000 | Rs 0 |
+| Plan A Only | Rs 89,000 | Rs 3,91,000 |
+| Plan B Only | Rs 1,18,000 | Rs 3,62,000 |
+| **Dual Coverage (actual)** ★ | **Rs 41,998** | **Rs 4,38,002** |
+| Dual Coverage, mid-year | Rs 32,000 | Rs 4,48,000 |
+
+This demonstrates the real financial value of COB coordination and goes beyond what the user explicitly requested.
 
 ## COB Logic — How It Works
 
@@ -184,12 +210,50 @@ Patient final OOP: ≈ Rs 28,400
 
 ## Design Decisions
 
-1. **State Machine Pattern**: `DuCOAgentState` with explicit transitions enables retry logic and debugging
-2. **Validation Loop**: Intake data is validated before COB calculation proceeds
-3. **API Tool-Use**: COB engine calls the mock API to verify rules (demonstrating agentic tool-use)
-4. **Fallback OCR**: If Tesseract fails, the system still has structured data from the code mapper
-5. **Separation of Concerns**: Each agent handles one responsibility (intake, calculation, letter gen)
-6. **Model-Agnostic Design**: LLM calls are isolated — swapping Mistral for Claude requires changing only the client initialization and model names
+1. **9-Stage State Machine**: `DuCOAgentState` with explicit transitions — INIT → INTENT_PARSING → INTAKE → VALIDATION → COB_CALCULATION → PREAUTH_GENERATION → WHAT_IF_ANALYSIS → OUTPUT_GENERATION → COMPLETE
+2. **Validation Loop**: Intake data validated before COB calculation proceeds; fails fast with clear errors
+3. **Tool-Use**: COB engine calls mock API per CPT code to verify pre-auth requirements (not just once globally)
+4. **Reflection**: LLM self-verifies its own COB calculation output — catches rounding errors and rule violations
+5. **What-If Reasoning**: Agent proactively compares 5 scenarios the user never asked for — true autonomous reasoning
+6. **Retry Loop**: If LLM extraction fails validation, re-prompts with enhanced context (up to 2 retries)
+7. **Compliance Checklist**: Each claim JSON includes a structured audit of COB rules applied
+8. **Model-Agnostic Design**: LLM calls are isolated — swapping Mistral for Claude requires changing only 3 lines
+
+## Project Structure
+
+```
+duco-agent-ai-assessment/
+├── README.md                  # This file
+├── ARCHITECTURE.md            # Mermaid diagrams + design patterns
+├── .env.example               # Environment variable template
+├── requirements.txt
+├── main.py                    # Orchestrator (live pipeline)
+├── run_demo.py                # Demo mode (no API key needed)
+├── mock_inputs/
+│   ├── generate_mock_files.py
+│   ├── priya_pt_invoice.png
+│   ├── aarav_mri_report.pdf
+│   ├── surgeon_estimate.jpg
+│   └── user_query.txt
+├── agents/
+│   ├── intake_agent.py        # Multi-modal parsing + retry loop
+│   ├── code_mapper_agent.py   # CPT/ICD-10 lookup tables
+│   ├── cob_logic_engine.py    # Core COB + tool-use + reflection
+│   ├── preauth_agent.py       # Pre-auth letter generation
+│   └── what_if_analyzer.py   # Autonomous scenario reasoning
+├── mock_apis/
+│   └── insurance_api.py       # FastAPI mock insurers
+├── outputs/
+│   ├── output_generator.py    # Charts + summary
+│   ├── audio_briefing.py      # TTS audio
+│   ├── cost_flow.png          # Sample output
+│   ├── full_cob_report.json   # Sample output
+│   ├── audio_briefing.mp3     # Sample output
+│   └── preauth_*.pdf          # Sample outputs
+└── tests/
+    ├── test_cob_logic.py      # 15 COB tests
+    └── test_intake_agent.py   # 9 intake tests
+```
 
 ## Tech Stack
 
