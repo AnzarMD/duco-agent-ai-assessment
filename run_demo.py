@@ -267,9 +267,16 @@ def run_demo():
     )
     print("   Pre-auth letters saved to outputs/\n")
 
-    # ─── STAGE 6: OUTPUT GENERATION ──────────────────────────────────────
+    # ─── STAGE 6: WHAT-IF ANALYSIS ──────────────────────────────────────
     print(f"\n{'=' * 60}")
-    print(f"  STAGE: PREAUTH_GENERATION → OUTPUT_GENERATION")
+    print(f"  STAGE: PREAUTH_GENERATION → WHAT_IF_ANALYSIS")
+    print(f"{'=' * 60}")
+    from agents.what_if_analyzer import run_what_if_analysis
+    what_if_results = run_what_if_analysis(intake_data)
+
+    # ─── STAGE 7: OUTPUT GENERATION ──────────────────────────────────────
+    print(f"\n{'=' * 60}")
+    print(f"  STAGE: WHAT_IF_ANALYSIS → OUTPUT_GENERATION")
     print(f"{'=' * 60}")
 
     print("   Generating cost flow visualization...")
@@ -292,7 +299,8 @@ def run_demo():
             "system": "DuCO-Agent v1.0 (DEMO MODE)",
             "stages_completed": [
                 "INIT", "INTENT_PARSING", "INTAKE", "VALIDATION",
-                "COB_CALCULATION", "PREAUTH_GENERATION", "OUTPUT_GENERATION", "COMPLETE",
+                "COB_CALCULATION", "PREAUTH_GENERATION", "WHAT_IF_ANALYSIS",
+                "OUTPUT_GENERATION", "COMPLETE",
             ],
             "validation_passed": True,
             "demo_mode": True,
@@ -300,6 +308,7 @@ def run_demo():
         },
         "aarav_surgery": aarav_result.breakdown,
         "priya_pt": priya_result.breakdown,
+        "what_if_analysis": what_if_results,
     }
 
     with open("outputs/full_cob_report.json", "w") as f:
@@ -312,7 +321,7 @@ def run_demo():
     print("=" * 60)
     print("   Stages: INIT → INTENT_PARSING → INTAKE → VALIDATION")
     print("           → COB_CALCULATION → PREAUTH_GENERATION")
-    print("           → OUTPUT_GENERATION → COMPLETE")
+    print("           → WHAT_IF_ANALYSIS → OUTPUT_GENERATION → COMPLETE")
     print(f"\n   Outputs generated:")
     print(f"     📊 outputs/cost_flow.png")
     print(f"     📄 outputs/preauth_insurer2_primary_aarav.pdf")

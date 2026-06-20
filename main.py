@@ -22,6 +22,7 @@ import re
 from agents.intake_agent import run_intake_agent
 from agents.cob_logic_engine import run_cob_for_all_claims
 from agents.preauth_agent import run_preauth_agent
+from agents.what_if_analyzer import run_what_if_analysis
 from outputs.output_generator import generate_cost_flow_chart, generate_oop_summary
 from outputs.audio_briefing import generate_audio, generate_audio_script
 
@@ -183,7 +184,11 @@ def run():
     else:
         print("\n   [Skip] User did not request pre-auth letters.")
 
-    # ─── STAGE 6: OUTPUT GENERATION ──────────────────────────────────────
+    # ─── STAGE 6: WHAT-IF ANALYSIS (Agentic Reasoning) ───────────────────
+    state.transition("WHAT_IF_ANALYSIS")
+    what_if_results = run_what_if_analysis(state.intake_data)
+
+    # ─── STAGE 7: OUTPUT GENERATION ──────────────────────────────────────
     state.transition("OUTPUT_GENERATION")
 
     print("   Generating cost flow visualization...")
@@ -193,7 +198,7 @@ def run():
     script = generate_audio_script(state.cob_results)
     generate_audio(script)
 
-    # ─── STAGE 7: FINAL REPORT ───────────────────────────────────────────
+    # ─── STAGE 8: FINAL REPORT ───────────────────────────────────────────
     state.transition("COMPLETE")
     summary = generate_oop_summary(state.cob_results)
     print(summary)
@@ -210,6 +215,7 @@ def run():
         },
         "aarav_surgery": state.cob_results["aarav_surgery"].breakdown,
         "priya_pt": state.cob_results["priya_pt"].breakdown,
+        "what_if_analysis": what_if_results,
     }
 
     with open("outputs/full_cob_report.json", "w") as f:
