@@ -4,7 +4,7 @@ An intelligent agentic AI system that automates **Coordination of Benefits (COB)
 
 ---
 
-## ⚠️ Important Note on Branch Protection Rules
+<!-- ## ⚠️ Important Note on Branch Protection Rules
 
 > **GitHub Limitation:** Branch protection rulesets (push rules, required reviews, force-push blocking)
 > **cannot be enforced on private repositories** unless the account is upgraded to a **GitHub Team or Enterprise organization plan**.
@@ -16,14 +16,15 @@ An intelligent agentic AI system that automates **Coordination of Benefits (COB)
 >
 > **To fully enforce these rules**, the repository would need to be moved to a GitHub Team organization account.
 
----
+--
+-->
 
 ## Note on LLM Choice
 
 > **This project uses Mistral AI** (`mistral-medium-latest` and `mistral-small-latest`) as the LLM backend.
 > The original design was built for **Anthropic Claude (claude-sonnet-4-6)**, which provides superior performance
-> for medical code extraction and clinical letter generation. Due to Claude API key unavailability,
-> Mistral was chosen as a free-tier alternative. The architecture is model-agnostic and can be
+> for medical code extraction and clinical letter generation.
+> The architecture is model-agnostic and can be
 > switched back to Claude by replacing the Mistral client calls with Anthropic's SDK.
 
 ### Model Assignments
